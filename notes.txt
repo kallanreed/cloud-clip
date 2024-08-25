@@ -1,0 +1,7 @@
+https://learn.microsoft.com/en-us/azure/azure-web-pubsub/tutorial-pub-sub-messages?tabs=javascript%2CLocalBash
+https://learn.microsoft.com/en-us/azure/azure-web-pubsub/tutorial-build-chat?tabs=javascript
+https://learn.microsoft.com/en-us/azure/azure-web-pubsub/quickstart-serverless?tabs=javascript-v4
+https://learn.microsoft.com/en-us/azure/azure-web-pubsub/reference-functions-bindings?tabs=csharp
+
+Publishing
+func azure functionapp publish cloud-clip

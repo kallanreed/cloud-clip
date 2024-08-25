@@ -1,0 +1,114 @@
+<html>
+
+<head>
+  <title>Cloud Clipboard</title>
+  <style>
+    body {
+      font-family: sans-serif;
+    }
+
+    #controlPanel {
+      margin-bottom: 2em;
+    }
+
+    #clipboardName {
+      width: 25em;
+    }
+
+    #connectionStatus {
+      color: gray;
+      font-size: small;
+    }
+
+    #clipboardContent {
+      width: 25em;
+    }
+
+    #history {
+      font-size: small;
+    }
+  </style>
+  <script>
+    let model = {
+      clipboardName: null,
+      connectButton: null,
+      connectionStatus: null,
+      clipboardContent: null,
+      history: null,
+
+      ws: null,
+    };
+
+    async function connectClipboard() {
+      // Close previously opened socket.
+      if (model.ws !== null) {
+        model.ws.close();
+        model.ws = null;
+      }
+
+      model.connectionStatus.innerText = "Connecting...";
+      model.history.innerHTML = "";
+
+      let res = await fetch(`${window.location.origin}/api/negotiate?name=${model.clipboardName.value}`);
+      let url = await res.json();
+
+      model.ws = new WebSocket(url.url);
+
+      model.ws.onopen = () => {
+        console.log("Connected");
+        model.connectionStatus.innerText = "Connected";
+      };
+
+      model.ws.onclose = () => {
+        console.log("Disconnected");
+        model.connectionStatus.innerText = "Disconnected";
+      };
+
+      model.ws.onerror = (error) => {
+        console.error("Socket Error:", error);
+        model.connectionStatus.innerText = "Failed";
+      };
+
+      model.ws.onmessage = (event) => {
+        let item = document.createElement("p");
+        item.innerText = event.data;
+        model.history.insertBefore(item, model.history.firstChild);
+      };
+    }
+
+    function attachUI() {
+      model.clipboardName = document.querySelector("#clipboardName");
+      model.connectButton = document.querySelector("#connectButton");
+      model.connectionStatus = document.querySelector("#connectionStatus");
+      model.clipboardContent = document.querySelector("#clipboardContent");
+      model.history = document.querySelector("#history");
+
+      model.connectButton.addEventListener("click", () => connectClipboard());
+
+      model.clipboardContent.addEventListener("keypress", (e) => {
+        if (e.charCode !== 13) return;
+
+        if (model.ws !== null) {
+          model.ws.send(model.clipboardContent.value);
+          model.clipboardContent.value = "";
+        }
+      })
+    }
+  </script>
+</head>
+
+<body>
+  <h1>Cloud Clipboard</h1>
+  <div id="controlPanel">
+    <input id="clipboardName" value="CorrectHorseBatteryStaple" />
+    <button id="connectButton">Connect</button>
+    <div id="connectionStatus">Disconnected</div>
+  </div>
+  <div id="clipboardPanel">
+    <input id="clipboardContent" placeholder="Paste here..." />
+  </div>
+  <div id="history"></div>
+  <script>attachUI();</script>
+</body>
+
+</html>

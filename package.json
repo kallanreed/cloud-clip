@@ -1,13 +1,16 @@
 {
-  "name": "cloud-clip",
-  "version": "0.0.0",
-  "private": true,
+  "name": "",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/functions/*.js",
   "scripts": {
-    "deploy": "wrangler deploy",
-    "dev": "wrangler dev",
-    "start": "wrangler dev"
+    "start": "func start",
+    "test": "echo \"No tests yet...\""
+  },
+  "dependencies": {
+    "@azure/functions": "^4.0.0"
   },
   "devDependencies": {
-    "wrangler": "^3.60.3"
+    "azure-functions-core-tools": "^4.x"
   }
 }
