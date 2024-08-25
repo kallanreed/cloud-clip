@@ -117,6 +117,7 @@
       }
 
       model.connectionStatus.innerText = "Connecting...";
+      localStorage.setItem("clipboard-name", model.clipboardName.value);
 
       let res = await fetch(`${window.location.origin}/api/negotiate?name=${model.clipboardName.value}`);
       let url = await res.json();
@@ -172,7 +173,12 @@
         }
       })
 
-      await randomizeName();
+      let savedName = localStorage.getItem("clipboard-name");
+      if (savedName) {
+        model.clipboardName.value = savedName;
+      } else {
+        await randomizeName();
+      }
     }
   </script>
 </head>
