@@ -2,6 +2,14 @@
 <html lang="en-us">
 
 <head>
+  <!-- Shout out to http://www.marcofolio.net/webdesign/build_native-looking_apps_for_ios.html -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+  <meta name="description" content="Cloud Clipboard">
+  <meta name="keywords" content="remote,cloud,clipboard,sync">
+  <meta name="author" content="Kyle Reed">
+  <meta charset="UTF-8">
   <title>Cloud Clipboard</title>
   <style>
     body {
@@ -54,7 +62,6 @@
     #history {
       font-size: small;
       font-family: monospace;
-      width: 50%;
     }
 
     #history p {
@@ -184,7 +191,6 @@
 </head>
 
 <body>
-  <h1>Cloud Clipboard</h1>
   <div id="controlPanel">
     <div>Clipboard Name</div>
     <div><input id="clipboardName" placeholder="Enter a unique clipboard name..." /></div>
