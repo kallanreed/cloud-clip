@@ -17,6 +17,13 @@
       height: 2.5em;
     }
 
+    textarea {
+      background: #373433;
+      color: beige;
+      height: 5em;
+      font-family: monospace;
+    }
+
     button {
       background: #373433;
       color: beige;
@@ -27,12 +34,9 @@
       margin-bottom: 2em;
     }
 
-    #controlPanel input {
-      margin-bottom: 1em;
-    }
-
     #clipboardName {
       width: 25em;
+      margin-bottom: 1em;
     }
 
     #connectionStatus {
@@ -55,6 +59,7 @@
 
     #history p {
       padding: .25em;
+      white-space: pre-wrap;
     }
 
     #history p:hover {
@@ -162,6 +167,7 @@
         if (model.ws !== null) {
           model.ws.send(model.clipboardContent.value);
           model.clipboardContent.value = "";
+          e.preventDefault();
         }
       })
 
@@ -183,7 +189,7 @@
   </div>
   <div id="clipboardPanel">
     <div>Clipboard</div>
-    <div><input id="clipboardContent" placeholder="Paste here..." /></div>
+    <div><textarea id="clipboardContent" placeholder="Paste and press Enter..."></textarea></div>
     <div>History</div>
     <div id="history"></div>
   </div>
