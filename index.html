@@ -68,13 +68,26 @@
       padding: .5em;
       white-space: pre-wrap;
       border-bottom: #3c3838 dotted 1px;
+      cursor: pointer;
     }
 
     #history p:hover {
       background: #373433;
     }
+
+    #clearLink {
+      color: lightgray;
+      font-size: small;
+      cursor: pointer;
+      margin-left: 2em;
+    }
+
+    #clearLink:hover {
+      text-decoration: underline;
+    }
   </style>
   <script>
+    // UI model.
     let model = {
       clipboardName: null,
       randomButton: null,
@@ -82,7 +95,9 @@
       connectionStatus: null,
       clipboardContent: null,
       history: null,
+      clearLink: null,
 
+      // The client websocket, if connected.
       ws: null,
     };
 
@@ -94,7 +109,6 @@
       }
 
       model.connectionStatus.innerText = "Disconnected";
-      model.history.innerHTML = "";
     }
 
     async function setClipboard(text) {
@@ -109,6 +123,7 @@
     async function handleMessage(message) {
       let item = document.createElement("p");
       item.innerText = message;
+      item.setAttribute("title", "Click to copy");
       item.addEventListener("click", async () => setClipboard(message));
 
       model.history.insertBefore(item, model.history.firstChild);
@@ -159,6 +174,10 @@
       model.clipboardName.value = result.name;
     }
 
+    async function clearHistory() {
+      model.history.innerHTML = "";
+    }
+
     async function attachUI() {
       model.clipboardName = document.querySelector("#clipboardName");
       model.randomButton = document.querySelector("#randomButton");
@@ -166,20 +185,32 @@
       model.connectionStatus = document.querySelector("#connectionStatus");
       model.clipboardContent = document.querySelector("#clipboardContent");
       model.history = document.querySelector("#history");
+      model.clearLink = document.querySelector("#clearLink");
 
       model.connectButton.addEventListener("click", async () => connectClipboard());
       model.randomButton.addEventListener("click", async () => randomizeName());
+      model.clearLink.addEventListener("click", () => clearHistory());
 
       model.clipboardContent.addEventListener("keypress", (e) => {
+        // Not 'Enter' key.
         if (e.charCode !== 13) return;
 
+        // Don't actually want the newline added.
+        e.preventDefault();
+
+        // Empty content.
+        if (!model.clipboardContent.value) return;
+
+        // Send the clipboard content.
         if (model.ws !== null) {
           model.ws.send(model.clipboardContent.value);
           model.clipboardContent.value = "";
-          e.preventDefault();
+        } else {
+          alert("Clipboard not connected.");
         }
       })
 
+      // Set the clipboard name. Use the stored name if it exists.
       let savedName = localStorage.getItem("clipboard-name");
       if (savedName) {
         model.clipboardName.value = savedName;
@@ -203,7 +234,7 @@
   <div id="clipboardPanel">
     <div>Clipboard</div>
     <div><textarea id="clipboardContent" placeholder="Paste and press Enter..."></textarea></div>
-    <div>History</div>
+    <div>History<span id="clearLink">[clear]<span></div>
     <div id="history"></div>
   </div>
   <script>(async () => { attachUI(); })();</script>
