@@ -43,8 +43,23 @@
     }
 
     #clipboardName {
-      width: 25em;
+      width: 300px;
       margin-bottom: 1em;
+    }
+
+    #passwordControl {
+      width: 300px;
+      margin-bottom: 1em;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    #passwordLabel {
+      margin-right: 1em;
+    }
+
+    #password {
+      flex-grow: 1;
     }
 
     #connectionStatus {
@@ -55,7 +70,7 @@
     }
 
     #clipboardContent {
-      width: 25em;
+      width: 300px;
       margin-bottom: 1em;
     }
 
@@ -87,9 +102,12 @@
     }
   </style>
   <script>
+    const cryptoSubtle = window.crypto.subtle;
+
     // UI model.
     let model = {
       clipboardName: null,
+      password: null,
       randomButton: null,
       connectButton: null,
       connectionStatus: null,
@@ -99,17 +117,92 @@
 
       // The client websocket, if connected.
       ws: null,
+      encKey: null,
     };
 
-    function disconnect() {
-      // Close previously opened socket.
-      if (model.ws !== null) {
-        model.ws.close();
-        model.ws = null;
+    async function generateKey() {
+      // First build a key from the password.
+      const enc = new TextEncoder();
+      const passKey = await cryptoSubtle.importKey(
+          "raw",
+          enc.encode(model.password.value),
+          "PBKDF2",
+          false,
+          ["deriveKey"]
+      );
+
+      // Then derive the AES key from the password key.
+      return await cryptoSubtle.deriveKey(
+        {
+            name: "PBKDF2",
+            salt: enc.encode("NaCl"),
+            iterations: 10000,
+            hash: "SHA-256"
+        },
+        passKey,
+        {
+          name: "AES-GCM", length: 256
+        },
+        true,
+        ["encrypt", "decrypt"]
+      );
+    }
+
+    async function encrypt(key, text) {
+      const enc = new TextEncoder();
+      const iv = window.crypto.getRandomValues(new Uint8Array(12));
+      const data = await cryptoSubtle.encrypt(
+        {
+            name: "AES-GCM",
+            iv: iv
+        },
+        key,
+        enc.encode(text));
+
+        return {
+          iv: toHexString(iv),
+          data: toHexString(new Uint8Array(data)),
+        };
+    }
+
+    async function decrypt(key, message) {
+      const dec = new TextDecoder();
+      const iv = fromHexString(message.iv);
+      const encrypted = fromHexString(message.data);
+      const data = await cryptoSubtle.decrypt(
+        {
+            name: "AES-GCM",
+            iv: iv
+        },
+        key,
+        encrypted
+      );
+
+      return dec.decode(data);
+    }
+
+    function byteToHex(b) {
+      let str = b.toString(16);
+      return str.length == 2 ? str : '0' + str;
+    }
+
+    function toHexString(buf) {
+      return Array.from(buf, byteToHex).join('');
+    }
+
+    function fromHexString(hexString) {
+      if (hexString.length % 2 !== 0) {
+          throw new Error("Hex string must have an even number of characters");
       }
 
-      model.connectionStatus.innerText = "Disconnected";
-    }
+      let byteArray = new Uint8Array(hexString.length / 2);
+
+      for (let i = 0; i < hexString.length; i += 2) {
+          byteArray[i / 2] = parseInt(hexString.substr(i, 2), 16);
+      }
+
+    return byteArray;
+  }
 
     async function setClipboard(text) {
       try {
@@ -121,13 +214,24 @@
     }
 
     async function handleMessage(message) {
-      let item = document.createElement("p");
-      item.innerText = message;
+      const data = await decrypt(model.encKey, JSON.parse(message));
+      const item = document.createElement("p");
+      item.innerText = data;
       item.setAttribute("title", "Click to copy");
-      item.addEventListener("click", async () => setClipboard(message));
+      item.addEventListener("click", async () => setClipboard(data));
 
       model.history.insertBefore(item, model.history.firstChild);
-      setClipboard(message);
+      setClipboard(data);
+    }
+
+    function disconnect() {
+      // Close previously opened socket.
+      if (model.ws !== null) {
+        model.ws.close();
+        model.ws = null;
+      }
+
+      model.connectionStatus.innerText = "Disconnected";
     }
 
     async function connectClipboard() {
@@ -140,11 +244,13 @@
 
       model.connectionStatus.innerText = "Connecting...";
       localStorage.setItem("clipboard-name", model.clipboardName.value);
+      localStorage.setItem("clipboard-password", model.password.value);
 
       let res = await fetch(`${window.location.origin}/api/negotiate?name=${model.clipboardName.value}`);
       let url = await res.json();
 
       model.ws = new WebSocket(url.url);
+      model.encKey = await generateKey();
 
       model.ws.onopen = () => {
         console.log("Connected");
@@ -162,7 +268,11 @@
       };
 
       model.ws.onmessage = async (event) => {
-        await handleMessage(event.data);
+        try {
+          await handleMessage(event.data);
+        } catch (error) {
+          console.error(`Error handling message ${error.message}`);
+        }
       };
     }
 
@@ -180,6 +290,7 @@
 
     async function attachUI() {
       model.clipboardName = document.querySelector("#clipboardName");
+      model.password = document.querySelector("#password");
       model.randomButton = document.querySelector("#randomButton");
       model.connectButton = document.querySelector("#connectButton");
       model.connectionStatus = document.querySelector("#connectionStatus");
@@ -191,7 +302,7 @@
       model.randomButton.addEventListener("click", async () => randomizeName());
       model.clearLink.addEventListener("click", () => clearHistory());
 
-      model.clipboardContent.addEventListener("keypress", (e) => {
+      model.clipboardContent.addEventListener("keypress", async (e) => {
         // Not 'Enter' key.
         if (e.charCode !== 13) return;
 
@@ -203,7 +314,8 @@
 
         // Send the clipboard content.
         if (model.ws !== null) {
-          model.ws.send(model.clipboardContent.value);
+          const msg = await encrypt(model.encKey, model.clipboardContent.value);
+          model.ws.send(JSON.stringify(msg));
           model.clipboardContent.value = "";
         } else {
           alert("Clipboard not connected.");
@@ -217,6 +329,12 @@
       } else {
         await randomizeName();
       }
+
+      // Set the password. Use the stored password if it exists.
+      let savedPassword = localStorage.getItem("clipboard-password");
+      if (savedPassword) {
+        model.password.value = savedPassword;
+      }
     }
   </script>
 </head>
@@ -225,6 +343,10 @@
   <div id="controlPanel">
     <div>Clipboard Name</div>
     <div><input id="clipboardName" placeholder="Enter a unique clipboard name..." /></div>
+    <div id="passwordControl">
+      <div id="passwordLabel">Password:</div>
+      <input id="password" type="password" />
+    </div>
     <div id="controlPanelButtons">
       <button id="randomButton">Random</button>
       <button id="connectButton">Connect</button>
